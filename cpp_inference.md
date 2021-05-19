@@ -24,6 +24,8 @@ from tensorflow import keras
 model = keras.models.load_model('./result/kan180k/', compile=False)
 ```
 
+[UserWarning: No training configuration found in save file: the model was *not* compiled. Compile it manually](https://stackoverflow.com/questions/53295570/userwarning-no-training-configuration-found-in-save-file-the-model-was-not-c)
+
 ### Convert .pb to .onxx
 
 ```
