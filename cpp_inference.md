@@ -5,7 +5,7 @@
 Add following line at the end of `eval.py`
 
 ```
-model.save('./xor/')  # SavedModel format
+model.save('./result/kan180k/')  # SavedModel format
 ```
 
 To test correctness of the SavedModel, revert above changes in `eval.py` and replace:
@@ -21,7 +21,7 @@ with
 ```
 from tensorflow import keras
 ...
-model = keras.models.load_model('./xor/', compile=False)
+model = keras.models.load_model('./result/kan180k/', compile=False)
 ```
 
 ### Convert .pb to .onxx
@@ -29,7 +29,7 @@ model = keras.models.load_model('./xor/', compile=False)
 ```
 $ pip install onnxruntime
 $ pip install tf2onnx
-$ python -m tf2onnx.convert --saved-model ./xor/ --opset 13 --output xor.onnx
+$ python -m tf2onnx.convert --saved-model ./result/kan180k/ --opset 13 --output ./result/kan180k.onnx
 ```
 
 ### [Tensorflow2 model inference in C++](https://medium.com/analytics-vidhya/inference-tensorflow2-model-in-c-aa73a6af41cf)
