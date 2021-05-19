@@ -1,7 +1,7 @@
 import numpy as np
-from keras.layers import Input, Conv2D, BatchNormalization, MaxPooling2D, Reshape, Dense, LSTM, add, concatenate, Dropout, Lambda, Flatten
-from keras.models import Model
-import keras.backend as K
+from tensorflow.keras.layers import Input, Conv2D, BatchNormalization, MaxPooling2D, Reshape, Dense, LSTM, add, concatenate, Dropout, Lambda, Flatten
+from tensorflow.keras.models import Model
+import tensorflow.keras.backend as K
 
 from STN.spatial_transformer import SpatialTransformer
 
@@ -70,6 +70,11 @@ def CRNN_STN(cfg):
     lstm_11_concat = concatenate([lstm_11, lstm_11_back])
     do_11 = Dropout(cfg.dropout_rate, name='dropout')(lstm_11_concat)
 
+    cfg.characters = list();
+    for line in open(cfg.characters_file):
+        line = line.rstrip('\n');
+        cfg.characters.append(line);
+
     fc_12 = Dense(len(cfg.characters), kernel_initializer='he_normal', activation='softmax', name='fc_12')(do_11)
 
     prediction_model = Model(inputs=inputs, outputs=fc_12)
@@ -106,16 +111,21 @@ def CRNN(cfg):
 
     reshape = Reshape(target_shape=(int(bn_7_shape[1]), int(bn_7_shape[2] * bn_7_shape[3])), name='reshape')(bn_7)
 
-    fc_9 = Dense(cfg.lstm_nb_units, activation='relu', name='fc_9')(reshape)
+    fc_9 = Dense(cfg.lstm_nb_units[0], activation='relu', name='fc_9')(reshape)
 
-    lstm_10 = LSTM(cfg.lstm_nb_units, kernel_initializer="he_normal", return_sequences=True, name='lstm_10')(fc_9)
-    lstm_10_back = LSTM(cfg.lstm_nb_units, kernel_initializer="he_normal", go_backwards=True, return_sequences=True, name='lstm_10_back')(fc_9)
+    lstm_10 = LSTM(cfg.lstm_nb_units[0], kernel_initializer="he_normal", return_sequences=True, name='lstm_10')(fc_9)
+    lstm_10_back = LSTM(cfg.lstm_nb_units[0], kernel_initializer="he_normal", go_backwards=True, return_sequences=True, name='lstm_10_back')(fc_9)
     lstm_10_add = add([lstm_10, lstm_10_back])
 
-    lstm_11 = LSTM(cfg.lstm_nb_units, kernel_initializer="he_normal", return_sequences=True, name='lstm_11')(lstm_10_add)
-    lstm_11_back = LSTM(cfg.lstm_nb_units, kernel_initializer="he_normal", go_backwards=True, return_sequences=True, name='lstm_11_back')(lstm_10_add)
+    lstm_11 = LSTM(cfg.lstm_nb_units[1], kernel_initializer="he_normal", return_sequences=True, name='lstm_11')(lstm_10_add)
+    lstm_11_back = LSTM(cfg.lstm_nb_units[1], kernel_initializer="he_normal", go_backwards=True, return_sequences=True, name='lstm_11_back')(lstm_10_add)
     lstm_11_concat = concatenate([lstm_11, lstm_11_back])
     do_11 = Dropout(cfg.dropout_rate, name='dropout')(lstm_11_concat)
+
+    cfg.characters = list();
+    for line in open(cfg.characters_file):
+        line = line.rstrip('\n');
+        cfg.characters.append(line);
 
     fc_12 = Dense(len(cfg.characters), kernel_initializer='he_normal', activation='softmax', name='fc_12')(do_11)
 

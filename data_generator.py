@@ -4,13 +4,13 @@ import numpy as np
 import linecache
 import abc
 
-import keras
+import tensorflow.keras
 
-class Generator(keras.utils.Sequence):
+class Generator(tensorflow.keras.utils.Sequence):
 
     __metaclass__  = abc.ABCMeta
 
-    def __init__(self, base_dir, annotation_file, batch_size, img_size, nb_channels, timesteps, label_len, characters, shuffle=True):
+    def __init__(self, base_dir, annotation_file, batch_size, img_size, nb_channels, timesteps, label_len, characters_file, shuffle=True):
         self.base_dir = base_dir
         self.annotation_file = annotation_file
         self.lexicon_path = os.path.join(self.base_dir, 'lexicon.txt')
@@ -20,7 +20,12 @@ class Generator(keras.utils.Sequence):
         self.img_size = img_size
         self.nb_channels = nb_channels
         self.label_len = label_len
-        self.characters = characters
+        self.characters_file = characters_file
+        temp_characters = list();
+        for line in open(characters_file):
+            line = line.rstrip('\n');
+            temp_characters.append(line);
+        self.characters = temp_characters
         self.timesteps = timesteps
         self.shuffle = shuffle
         self.nb_samples = len(self.filenames)
@@ -73,13 +78,14 @@ class Generator(keras.utils.Sequence):
             word = self.word_labels[int(fn_split[1])]
             img_path = os.path.join(self.base_dir, fn_split[0][2:])
             img = self.load_image(img_path)
+            img = 255.0 - img;
             if (img is not None) and len(word) <= self.label_len:
                 loaded_img_shape = img.shape
-                if loaded_img_shape[0] > 2 and loaded_img_shape[1] > 2:
+                if ((loaded_img_shape[0] > 2 and loaded_img_shape[1] > 2) or (len(word) >= 32)):
                     break
             fn = np.random.choice(self.filenames)
 
-        if loaded_img_shape[1] / loaded_img_shape[0] < 6.4:
+        if loaded_img_shape[1] / loaded_img_shape[0] < 8.0:
             img = self.pad_image(img, loaded_img_shape)
         else:
             img = self.resize_image(img)
@@ -89,12 +95,16 @@ class Generator(keras.utils.Sequence):
     def pad_image(self, img, loaded_img_shape):
         # img_size : (width, height)
         # loaded_img_shape : (height, width)
-        img_reshape = cv2.resize(img, (int(self.img_size[1] / loaded_img_shape[0] * loaded_img_shape[1]), self.img_size[1]))
-        if self.nb_channels == 1:
-            padding = np.zeros((self.img_size[1], self.img_size[0] - int(self.img_size[1] / loaded_img_shape[0] * loaded_img_shape[1])), dtype=np.int32)
+        if ((self.img_size[0] - int(self.img_size[1] / loaded_img_shape[0] * loaded_img_shape[1])) <= 0):
+            img = cv2.resize(img, self.img_size, interpolation=cv2.INTER_CUBIC);
+            img = np.asarray(img);
         else:
-            padding = np.zeros((self.img_size[1], self.img_size[0] - int(self.img_size[1] / loaded_img_shape[0] * loaded_img_shape[1]), self.nb_channels), dtype=np.int32)
-        img = np.concatenate([img_reshape, padding], axis=1)
+            img_reshape = cv2.resize(img, (int(self.img_size[1] / loaded_img_shape[0] * loaded_img_shape[1]), self.img_size[1]))
+            if self.nb_channels == 1:
+                padding = np.zeros((self.img_size[1], self.img_size[0] - int(self.img_size[1] / loaded_img_shape[0] * loaded_img_shape[1])), dtype=np.int32)
+            else:
+                padding = np.zeros((self.img_size[1], self.img_size[0] - int(self.img_size[1] / loaded_img_shape[0] * loaded_img_shape[1]), self.nb_channels), dtype=np.int32)
+            img = np.concatenate([img_reshape, padding], axis=1)
         return img
 
     def resize_image(self, img):
@@ -132,9 +142,11 @@ class TrainGenerator(Generator):
             img = self.preprocess(img)
             x[i] = img
 
-            while len(word) < self.label_len:
-                word += '-'
-            y[i] = [self.characters.find(c) for c in word]
+            for char_idx in range(self.label_len):
+                if (char_idx < len(word)):
+                    y[i, char_idx] = self.characters.index(word[char_idx])
+                else:
+                    y[i, char_idx] = self.characters.index('<eps>')
 
         return [x, y, np.ones(self.batch_size) * int(self.timesteps - 2), np.ones(self.batch_size) * self.label_len], y
 

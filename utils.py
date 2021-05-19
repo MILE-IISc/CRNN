@@ -2,8 +2,8 @@ import os, glob
 import numpy as np
 import cv2
 
-from keras.callbacks import ModelCheckpoint, Callback
-import keras.backend as K
+from tensorflow.keras.callbacks import ModelCheckpoint, Callback
+import tensorflow.keras.backend as K
 
 
 def create_result_subdir(result_dir):
@@ -117,12 +117,16 @@ class PredictionModelCheckpoint(Callback):
 
 class Evaluator(Callback):
 
-    def __init__(self, prediction_model, val_generator, label_len, characters, optimizer, period=2000):
+    def __init__(self, prediction_model, val_generator, label_len, characters_file, optimizer, period=2000):
         self.prediction_model = prediction_model
         self.period = period
         self.val_generator = val_generator
         self.label_len = label_len
-        self.characters = characters
+        temp_characters = list();
+        for line in open(characters_file):
+            line = line.rstrip('\n');
+            temp_characters.append(line);
+        self.characters = temp_characters
         self.optimizer = optimizer
 
     def on_batch_end(self, batch, logs=None):
@@ -163,8 +167,10 @@ class Evaluator(Callback):
 
         for i in range(self.val_generator.batch_size):
             print(ctc_out[i])
-            result_str = ''.join([self.characters[c] for c in ctc_out[i]])            
-            result_str = result_str.replace('-', '')
+            result_str = ''
+            for c in ctc_out[i]:
+                if (self.characters[c] != '<eps>'):
+                    result_str = result_str + self.characters[c]
             if result_str == y_val[i]:
                 correct_predictions += 1
             print(result_str, y_val[i])
@@ -180,12 +186,17 @@ class Evaluator(Callback):
 def pad_image(img, img_size, nb_channels):
     # img_size : (width, height)
     # loaded_img_shape : (height, width)
-    img_reshape = cv2.resize(img, (int(img_size[1] / img.shape[0] * img.shape[1]), img_size[1]))
-    if nb_channels == 1:
-        padding = np.zeros((img_size[1], img_size[0] - int(img_size[1] / img.shape[0] * img.shape[1])), dtype=np.int32)
+    loaded_img_shape = img.shape;
+    if ((img_size[0] - int(img_size[1] / loaded_img_shape[0] * loaded_img_shape[1])) <= 0):
+        img = cv2.resize(img, img_size, interpolation=cv2.INTER_CUBIC);
+        img = np.asarray(img);
     else:
-        padding = np.zeros((img_size[1], img_size[0] - int(img_size[1] / img.shape[0] * img.shape[1]), nb_channels), dtype=np.int32)
-    img = np.concatenate([img_reshape, padding], axis=1)
+        img_reshape = cv2.resize(img, (int(img_size[1] / loaded_img_shape[0] * loaded_img_shape[1]), img_size[1]))
+        if nb_channels == 1:
+            padding = np.zeros((img_size[1], img_size[0] - int(img_size[1] / loaded_img_shape[0] * loaded_img_shape[1])), dtype=np.int32)
+        else:
+            padding = np.zeros((img_size[1], img_size[0] - int(img_size[1] / loaded_img_shape[0] * loaded_img_shape[1]), nb_channels), dtype=np.int32)
+        img = np.concatenate([img_reshape, padding], axis=1)
     return img
 
 def resize_image(img, img_size):

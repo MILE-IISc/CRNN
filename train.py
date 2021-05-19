@@ -2,10 +2,10 @@ import os
 import sys
 import shutil
 import logging
-from keras.optimizers import Adam, SGD
-from keras.callbacks import ReduceLROnPlateau, TensorBoard
+from tensorflow.keras.optimizers import Adam, SGD
+from tensorflow.keras.callbacks import ReduceLROnPlateau, TensorBoard
 from keras.utils import multi_gpu_model
-import keras.backend as K
+import tensorflow.keras.backend as K
 
 from models import CRNN_STN, CRNN
 from data_generator import TrainGenerator, ValGenerator
@@ -39,7 +39,7 @@ def get_generators():
                                      nb_channels=cfg.nb_channels,
                                      timesteps=cfg.timesteps,
                                      label_len=cfg.label_len,
-                                     characters=cfg.characters)
+                                     characters_file=cfg.characters_file)
     val_generator = ValGenerator(base_dir=cfg.base_dir,
                                  annotation_file=os.path.join(cfg.base_dir, 'annotation_val.txt'),
                                  batch_size=5000,
@@ -47,7 +47,7 @@ def get_generators():
                                  nb_channels=cfg.nb_channels,
                                  timesteps=cfg.timesteps,
                                  label_len=cfg.label_len,
-                                 characters=cfg.characters)
+                                 characters_file=cfg.characters_file)
     return train_generator, val_generator
 
 def get_optimizer():
@@ -62,7 +62,7 @@ def get_optimizer():
 def get_callbacks(output_subdir, training_model, prediction_model, val_generator):
     training_model_checkpoint = MultiGPUModelCheckpoint(os.path.join(output_subdir, cfg.training_model_cp_filename), training_model, save_best_only=cfg.save_best_only, monitor='loss', mode='min')
     prediction_model_checkpoint = PredictionModelCheckpoint(os.path.join(output_subdir, cfg.prediction_model_cp_filename), prediction_model, save_best_only=cfg.save_best_only, monitor='loss', mode='min')
-    evaluator = Evaluator(prediction_model, val_generator, cfg.label_len, cfg.characters, cfg.optimizer, period=cfg.val_iter_period)
+    evaluator = Evaluator(prediction_model, val_generator, cfg.label_len, cfg.characters_file, cfg.optimizer, period=cfg.val_iter_period)
     lr_reducer = ReduceLROnPlateau(factor=cfg.lr_reduction_factor, patience=3, verbose=1, min_lr=0.00001)
     os.makedirs(cfg.tb_log, exist_ok=True)
     tensorboard = TensorBoard(log_dir=cfg.tb_log)
