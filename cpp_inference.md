@@ -39,3 +39,5 @@ $ python -m tf2onnx.convert --saved-model ./result/kan180k/ --opset 13 --output 
 ## [TensorFlow for Java](https://github.com/tensorflow/java)
 
 * [Install TensorFlow Java](https://www.tensorflow.org/jvm/install)
+
+* [Introduction to Tensorflow for Java](https://www.baeldung.com/tensorflow-java)
